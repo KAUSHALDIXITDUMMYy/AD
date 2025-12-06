@@ -45,13 +45,20 @@ interface WhatsAppChatProps {
   onClose?: () => void
 }
 
+interface ConversationThread {
+  messages: Message[]
+  matchingMessageIndex: number // Index of the matching message within this thread
+  threadIndex: number // Index of this thread in the threads array
+}
+
 export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [endDate, setEndDate] = useState<Date | undefined>(undefined)
   const [messages, setMessages] = useState<Message[]>([])
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
-  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [conversationThreads, setConversationThreads] = useState<ConversationThread[]>([])
+  const [selectedThreadIndex, setSelectedThreadIndex] = useState(-1)
   const [isLoading, setIsLoading] = useState(true)
   const [showDirections, setShowDirections] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -250,15 +257,7 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
   useEffect(() => {
     let filtered = messages
 
-    // Filter by search term (message text or sender)
-    if (searchTerm.trim() !== "") {
-      const term = searchTerm.toLowerCase()
-      filtered = filtered.filter(
-        (msg) => msg.text.toLowerCase().includes(term) || msg.sender.toLowerCase().includes(term),
-      )
-    }
-
-    // Filter by date range
+    // Filter by date range first
     if (startDate) {
       const start = new Date(startDate)
       start.setHours(0, 0, 0, 0)
@@ -278,26 +277,102 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
       })
     }
 
-    setFilteredMessages(filtered)
-    setSelectedIndex(filtered.length > 0 ? 0 : -1)
+    // If search term exists, create conversation threads around matching messages
+    if (searchTerm.trim() !== "") {
+      const term = searchTerm.toLowerCase()
+      const matchingIndices: number[] = []
+      
+      // Find all messages that match the search term
+      filtered.forEach((msg, idx) => {
+        if (msg.text.toLowerCase().includes(term) || msg.sender.toLowerCase().includes(term)) {
+          matchingIndices.push(idx)
+        }
+      })
+
+      // Create conversation threads around each matching message
+      const threads: ConversationThread[] = []
+      const CONTEXT_MESSAGES = 5 // Number of messages before and after to include
+      const processedIndices = new Set<number>()
+
+      matchingIndices.forEach((matchIdx) => {
+        // Skip if this index is already part of a thread
+        if (processedIndices.has(matchIdx)) return
+
+        // Find the start and end of the conversation thread
+        let threadStart = Math.max(0, matchIdx - CONTEXT_MESSAGES)
+        let threadEnd = Math.min(filtered.length - 1, matchIdx + CONTEXT_MESSAGES)
+
+        // Expand thread to include continuous conversation (group messages that are close together)
+        // Look for gaps larger than 2 hours to break conversation threads
+        for (let i = threadStart; i < matchIdx; i++) {
+          if (i > 0) {
+            const timeDiff = filtered[i].dateObj.getTime() - filtered[i - 1].dateObj.getTime()
+            const hoursDiff = timeDiff / (1000 * 60 * 60)
+            if (hoursDiff > 2) {
+              threadStart = i
+              break
+            }
+          }
+        }
+
+        for (let i = matchIdx; i < threadEnd; i++) {
+          if (i < filtered.length - 1) {
+            const timeDiff = filtered[i + 1].dateObj.getTime() - filtered[i].dateObj.getTime()
+            const hoursDiff = timeDiff / (1000 * 60 * 60)
+            if (hoursDiff > 2) {
+              threadEnd = i
+              break
+            }
+          }
+        }
+
+        // Mark all indices in this thread as processed
+        for (let i = threadStart; i <= threadEnd; i++) {
+          processedIndices.add(i)
+        }
+
+        // Create thread
+        const threadMessages = filtered.slice(threadStart, threadEnd + 1)
+        const matchingMessageIndex = matchIdx - threadStart
+
+        threads.push({
+          messages: threadMessages,
+          matchingMessageIndex,
+          threadIndex: threads.length,
+        })
+      })
+
+      setConversationThreads(threads)
+      setSelectedThreadIndex(threads.length > 0 ? 0 : -1)
+      // For search mode, we'll show threads, so filteredMessages will be the current thread
+      setFilteredMessages(threads.length > 0 ? threads[0].messages : [])
+    } else {
+      // No search term - show all messages normally
+      setConversationThreads([])
+      setSelectedThreadIndex(-1)
+      setFilteredMessages(filtered)
+    }
   }, [searchTerm, startDate, endDate, messages])
 
   useEffect(() => {
-    if (selectedIndex >= 0 && selectedIndex < filteredMessages.length) {
-      const selectedMessage = filteredMessages[selectedIndex]
-      const messageElements = chatContainerRef.current?.querySelectorAll("[data-message-id]")
-
-      messageElements?.forEach((el) => {
-        el.classList.remove("bg-yellow-200")
-      })
-
-      const targetElement = chatContainerRef.current?.querySelector(`[data-message-id="${selectedIndex}"]`)
-      if (targetElement) {
-        targetElement.classList.add("bg-yellow-200")
-        targetElement.scrollIntoView({ behavior: "smooth", block: "center" })
+    // Update filtered messages when thread selection changes
+    if (searchTerm.trim() !== "" && conversationThreads.length > 0) {
+      if (selectedThreadIndex >= 0 && selectedThreadIndex < conversationThreads.length) {
+        const selectedThread = conversationThreads[selectedThreadIndex]
+        setFilteredMessages(selectedThread.messages)
+        
+        // Scroll to matching message after a brief delay
+        setTimeout(() => {
+          const matchingElement = chatContainerRef.current?.querySelector(
+            `[data-matching-message="true"]`
+          )
+          if (matchingElement) {
+            matchingElement.scrollIntoView({ behavior: "smooth", block: "center" })
+          }
+        }, 100)
       }
     }
-  }, [selectedIndex, filteredMessages])
+  }, [selectedThreadIndex, conversationThreads, searchTerm])
 
 
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -492,21 +567,46 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
           ) : filteredMessages.length > 0 ? (
             filteredMessages.map((msg, idx) => {
               const isKaushal = msg.sender.includes("kaushal")
+              const isMatchingMessage = searchTerm.trim() !== "" && 
+                conversationThreads.length > 0 && 
+                selectedThreadIndex >= 0 &&
+                conversationThreads[selectedThreadIndex].matchingMessageIndex === idx
+              const term = searchTerm.toLowerCase()
+              const matchesSearch = searchTerm.trim() !== "" && 
+                (msg.text.toLowerCase().includes(term) || msg.sender.toLowerCase().includes(term))
+              
               return (
                 <div
                   key={idx}
                   data-message-id={idx}
+                  data-matching-message={isMatchingMessage}
                   className={`flex ${isKaushal ? "justify-end" : "justify-start"} transition-colors duration-300`}
                 >
                   <div
                     className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                      isKaushal
+                      isMatchingMessage
+                        ? "ring-2 ring-yellow-400 ring-offset-2 bg-yellow-50"
+                        : isKaushal
                         ? "bg-green-100 text-gray-900 rounded-br-none"
                         : "bg-white text-gray-900 border border-gray-200 rounded-bl-none"
-                    }`}
+                    } ${matchesSearch && !isMatchingMessage ? "opacity-80" : ""}`}
                   >
                     <p className="text-xs font-semibold text-gray-600 mb-1">{msg.sender}</p>
-                    <p className="text-sm break-words">{msg.text}</p>
+                    <p className="text-sm break-words">
+                      {searchTerm.trim() !== "" && matchesSearch ? (
+                        <span>
+                          {msg.text.split(new RegExp(`(${searchTerm})`, 'gi')).map((part, i) => 
+                            part.toLowerCase() === searchTerm.toLowerCase() ? (
+                              <mark key={i} className="bg-yellow-300 px-1 rounded">{part}</mark>
+                            ) : (
+                              part
+                            )
+                          )}
+                        </span>
+                      ) : (
+                        msg.text
+                      )}
+                    </p>
                     <p className="text-xs text-gray-500 mt-1">{msg.date}</p>
                   </div>
                 </div>
@@ -519,21 +619,23 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
         </div>
 
         {/* Search Navigation */}
-        {searchTerm && filteredMessages.length > 0 && (
+        {searchTerm && conversationThreads.length > 0 && (
           <div className="p-3 bg-white border-t flex items-center justify-between">
             <span className="text-sm text-gray-600">
-              Result {selectedIndex + 1} of {filteredMessages.length}
+              Conversation {selectedThreadIndex + 1} of {conversationThreads.length}
             </span>
             <div className="flex gap-2">
               <button
-                onClick={() => setSelectedIndex((prev) => (prev === 0 ? filteredMessages.length - 1 : prev - 1))}
-                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm rounded transition"
+                type="button"
+                onClick={() => setSelectedThreadIndex((prev) => (prev === 0 ? conversationThreads.length - 1 : prev - 1))}
+                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm rounded transition cursor-pointer"
               >
                 ← Previous
               </button>
               <button
-                onClick={() => setSelectedIndex((prev) => (prev === filteredMessages.length - 1 ? 0 : prev + 1))}
-                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm rounded transition"
+                type="button"
+                onClick={() => setSelectedThreadIndex((prev) => (prev === conversationThreads.length - 1 ? 0 : prev + 1))}
+                className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-sm rounded transition cursor-pointer"
               >
                 Next →
               </button>
