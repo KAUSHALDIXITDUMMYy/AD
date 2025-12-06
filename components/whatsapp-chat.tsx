@@ -311,7 +311,7 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
       className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
       onClick={handleBackdropClick}
     >
-      <div className="bg-white rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col shadow-2xl">
+      <div className="bg-white rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white p-4 rounded-t-2xl flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -322,8 +322,14 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
             </div>
           </div>
           <button 
-            onClick={onClose}
-            className="text-white hover:bg-white/20 p-2 rounded-full transition"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              if (onClose) {
+                onClose()
+              }
+            }}
+            className="text-white hover:bg-white/20 p-2 rounded-full transition cursor-pointer"
             aria-label="Close chat"
           >
             <X size={24} />
@@ -350,10 +356,14 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
           </div>
           
           {/* Directions - Collapsible Date Range Suggestions */}
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="border border-gray-200 rounded-lg overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={() => setShowDirections(!showDirections)}
-              className="w-full flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all"
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                setShowDirections(!showDirections)
+              }}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all cursor-pointer"
             >
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-gray-700">🗺️ Directions</span>
@@ -367,17 +377,19 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
             </button>
             
             {showDirections && (
-              <div className="p-4 bg-white border-t border-gray-200 max-h-96 overflow-y-auto">
+              <div className="p-4 bg-white border-t border-gray-200 max-h-96 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="text-xs font-semibold text-gray-600 mb-3">✨ First Time Moments & Important Dates:</div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {dateRangeSuggestions.map((range, idx) => (
                     <button
                       key={idx}
-                      onClick={() => {
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
                         handleDateRangeClick(range.startDate, range.endDate)
                         setShowDirections(false) // Close after selection
                       }}
-                      className={`px-3 py-2.5 rounded-lg text-xs transition-all text-left ${
+                      className={`px-3 py-2.5 rounded-lg text-xs transition-all text-left cursor-pointer ${
                         startDate?.getTime() === range.startDate.getTime() && 
                         endDate?.getTime() === range.endDate.getTime()
                           ? "bg-pink-500 text-white shadow-md ring-2 ring-pink-300"
