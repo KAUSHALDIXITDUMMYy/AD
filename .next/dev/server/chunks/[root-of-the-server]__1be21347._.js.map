@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 52, "column": 0}, "map": {"version":3,"sources":["file:///C:/Users/kaush/Desktop/aw/app/api/chat/route.ts"],"sourcesContent":["import { readFile } from 'fs/promises'\r\nimport { NextResponse } from 'next/server'\r\n\r\nexport async function GET() {\r\n  try {\r\n    const filePath = 'c:\\\\Users\\\\kaush\\\\Desktop\\\\radhika\\\\WhatsApp Chat with Singer Mulli\\\\WhatsApp Chat with Singer Mulli.txt'\r\n    const content = await readFile(filePath, 'utf-8')\r\n    return NextResponse.json({ content })\r\n  } catch (error) {\r\n    console.error('Error reading chat file:', error)\r\n    return NextResponse.json(\r\n      { error: 'Failed to read chat file' },\r\n      { status: 500 }\r\n    )\r\n  }\r\n}\r\n\r\n"],"names":[],"mappings":";;;;AAAA;AACA;;;AAEO,eAAe;IACpB,IAAI;QACF,MAAM,WAAW;QACjB,MAAM,UAAU,MAAM,IAAA,iIAAQ,EAAC,UAAU;QACzC,OAAO,iKAAY,CAAC,IAAI,CAAC;YAAE;QAAQ;IACrC,EAAE,OAAO,OAAO;QACd,QAAQ,KAAK,CAAC,4BAA4B;QAC1C,OAAO,iKAAY,CAAC,IAAI,CACtB;YAAE,OAAO;QAA2B,GACpC;YAAE,QAAQ;QAAI;IAElB;AACF"}}]
-}
