@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Search, X, Calendar as CalendarIcon } from "lucide-react"
+import { Search, X, Calendar as CalendarIcon, ChevronDown, ChevronUp } from "lucide-react"
 import { format } from "date-fns"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -53,10 +53,87 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
   const [filteredMessages, setFilteredMessages] = useState<Message[]>([])
   const [selectedIndex, setSelectedIndex] = useState(-1)
   const [isLoading, setIsLoading] = useState(true)
+  const [showDirections, setShowDirections] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatContainerRef = useRef<HTMLDivElement>(null)
 
   const searchSuggestions = ["radha krishna", "radha", "krishna", "love", "congratulations", "upawas", "hatyaa", "masala"]
+
+  // Date range suggestions based on important/romantic conversations and FIRST TIME moments
+  const dateRangeSuggestions = [
+    {
+      label: "🌟 First Message Ever (2 Jun)",
+      startDate: new Date(2025, 5, 2), // June 2, 2025
+      endDate: new Date(2025, 5, 2),
+      description: "First message in chat - 02/06/2025, 12:57"
+    },
+    {
+      label: "💬 First Real Conversation (7 Jun)",
+      startDate: new Date(2025, 5, 7), // June 7, 2025
+      endDate: new Date(2025, 5, 7),
+      description: "First actual conversation - 07/06/2025, 22:39"
+    },
+    {
+      label: "🤝 First Meeting Plan (4 Jul)",
+      startDate: new Date(2025, 6, 4), // July 4, 2025
+      endDate: new Date(2025, 6, 4),
+      description: "First time planning to meet - 04/07/2025, 14:42 'milte 11 ko'"
+    },
+    {
+      label: "🎉 First Congratulations (6-7 Jul)",
+      startDate: new Date(2025, 6, 6), // July 6, 2025
+      endDate: new Date(2025, 6, 7),
+      description: "First congratulations - 06/07/2025, 23:49 & upawas conversation"
+    },
+    {
+      label: "💕 First 'I Love You' (17 Jul, 18:01)",
+      startDate: new Date(2025, 6, 17), // July 17, 2025
+      endDate: new Date(2025, 6, 17),
+      description: "First 'I love you' message - 17/07/2025, 18:01 'Mydearawantilailoveyourverybestaingingkartehe'"
+    },
+    {
+      label: "📝 First Romantic Poetry (17 Jul, 02:23)",
+      startDate: new Date(2025, 6, 17), // July 17, 2025
+      endDate: new Date(2025, 6, 17),
+      description: "First romantic poetry shared - 17/07/2025, 02:23 'Deep romantic poem about love and connection'"
+    },
+    {
+      label: "💖 First 'I Love You So Much' (19 Jul, 02:35)",
+      startDate: new Date(2025, 6, 19), // July 19, 2025
+      endDate: new Date(2025, 6, 19),
+      description: "First 'I love you so much' - 19/07/2025, 02:35 'Mydearawantilailoveyousomuchthakyouforyourreply'"
+    },
+    {
+      label: "😢 First Trauma Sharing (20 Jul, 02:26-02:48)",
+      startDate: new Date(2025, 6, 20), // July 20, 2025
+      endDate: new Date(2025, 6, 20),
+      description: "First time sharing childhood trauma - 20/07/2025, 02:26-02:48 (Career pressure, childhood struggles, first time crying in front of friends)"
+    },
+    {
+      label: "💔 Deep Trauma & Dil Ki Baat (22 Jul, 01:00-02:00)",
+      startDate: new Date(2025, 6, 22), // July 22, 2025
+      endDate: new Date(2025, 6, 22),
+      description: "Deepest trauma sharing - 22/07/2025, 01:00-02:00 AM (Sharing personal nature, relationship struggles, how caring backfired, understanding each other)"
+    },
+    {
+      label: "🔥 Main Masala (21-25 Jul)",
+      startDate: new Date(2025, 6, 21), // July 21, 2025
+      endDate: new Date(2025, 6, 25),
+      description: "The most important conversations period - playful banter, deep talks, and romantic moments"
+    },
+    {
+      label: "💖 Emotional Deep Talks (19-20 Jul)",
+      startDate: new Date(2025, 6, 19), // July 19, 2025
+      endDate: new Date(2025, 6, 20),
+      description: "Heartfelt conversations, hugs, and emotional support"
+    }
+  ]
+
+  const handleDateRangeClick = (start: Date, end: Date) => {
+    setStartDate(start)
+    setEndDate(end)
+    setSearchTerm("") // Clear search when selecting date range
+  }
 
   // Load chat data from API
   useEffect(() => {
@@ -272,9 +349,50 @@ export default function WhatsAppChat({ onClose }: WhatsAppChatProps) {
             ))}
           </div>
           
-          {/* Date Range Hint */}
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 text-xs text-yellow-800">
-            💡 <strong>Tip:</strong> Main masala is from <strong>21/07/2025</strong> to <strong>25/07/2025</strong>
+          {/* Directions - Collapsible Date Range Suggestions */}
+          <div className="border border-gray-200 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setShowDirections(!showDirections)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-pink-50 to-purple-50 hover:from-pink-100 hover:to-purple-100 transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-700">🗺️ Directions</span>
+                <span className="text-xs text-gray-500">({dateRangeSuggestions.length} important moments)</span>
+              </div>
+              {showDirections ? (
+                <ChevronUp size={18} className="text-gray-600" />
+              ) : (
+                <ChevronDown size={18} className="text-gray-600" />
+              )}
+            </button>
+            
+            {showDirections && (
+              <div className="p-4 bg-white border-t border-gray-200 max-h-96 overflow-y-auto">
+                <div className="text-xs font-semibold text-gray-600 mb-3">✨ First Time Moments & Important Dates:</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {dateRangeSuggestions.map((range, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        handleDateRangeClick(range.startDate, range.endDate)
+                        setShowDirections(false) // Close after selection
+                      }}
+                      className={`px-3 py-2.5 rounded-lg text-xs transition-all text-left ${
+                        startDate?.getTime() === range.startDate.getTime() && 
+                        endDate?.getTime() === range.endDate.getTime()
+                          ? "bg-pink-500 text-white shadow-md ring-2 ring-pink-300"
+                          : "bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 hover:border-pink-300"
+                      }`}
+                    >
+                      <div className="font-semibold mb-1">{range.label}</div>
+                      <div className={`text-[10px] leading-tight ${startDate?.getTime() === range.startDate.getTime() && endDate?.getTime() === range.endDate.getTime() ? 'text-pink-50' : 'text-pink-600'}`}>
+                        {range.description}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex gap-2">
